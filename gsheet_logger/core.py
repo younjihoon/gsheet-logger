@@ -4,16 +4,12 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from zoneinfo import ZoneInfo
 from email.message import EmailMessage
-
+import pathlib
 import gspread
 from dotenv import load_dotenv
 
 load_dotenv()  # allow user‑provided .env
 
-# ───────────────────────────────────────────────────────────────
-#  CONFIG FILE  (요구 5)
-#    ~/.config/gsheet_logger/config.json   ← per‑user, git‑ignored
-# ───────────────────────────────────────────────────────────────
 _CFG_DIR  = os.path.join(os.path.expanduser("~"), ".config", "gsheet_logger")
 _CFG_PATH = os.path.join(_CFG_DIR, "config.json")
 
@@ -31,9 +27,6 @@ def _save_cfg(cfg: Dict[str, str]) -> None:
         json.dump(cfg, f, indent=2)
 
 
-# ───────────────────────────────────────────────────────────────
-#  MAIN CLASS  (요구 4)
-# ───────────────────────────────────────────────────────────────
 class GSheetLogger:
     """
     Lightweight Google‑Sheet logger with optional Gmail alerts.
@@ -85,6 +78,23 @@ class GSheetLogger:
             sheet_url = cfg.get(logger_id)
 
         # open or create sheet -------------------------------------------------
+        key_path = pathlib.Path(service_account_file).expanduser()
+
+        if not key_path.is_file():
+            raise FileNotFoundError(
+                f"\n✖  Service‑account key file not found:  {key_path}\n"
+                "   · Go to **Google Cloud Console → IAM & Admin → Service Accounts**\n"
+                "   · Create / pick a service account → Keys → “Create key” (JSON)\n"
+                "   · Save the JSON next to your script, or anywhere, e.g.  ~/.secrets/key.json\n"
+                "   · Then run again with either\n"
+                "       GSheetLogger(service_account_file='/full/path/key.json')\n"
+                "     or\n"
+                "       export GSHEET_LOGGER_KEY=/full/path/key.json   # in .env / shell\n"
+            )
+
+        # keep the filename the rest of the code expects
+        service_account_file = str(key_path)
+        
         self.gc = gspread.service_account(filename=service_account_file)
         if sheet_url:
             sh = self.gc.open_by_url(sheet_url)
@@ -113,9 +123,6 @@ class GSheetLogger:
 
         self._cleanup_once()
 
-    # ―――――――――――――――――――――――――――――――――――――――――――――――――
-    # internal helpers
-    # ―――――――――――――――――――――――――――――――――――――――――――――――――
     def _cleanup_once(self) -> None:
         rows = self.ws.get_all_values()
         if len(rows) < 2:
@@ -152,9 +159,6 @@ class GSheetLogger:
         except Exception as e:
             warnings.warn(f"Email send failed: {e}", RuntimeWarning)
 
-    # ―――――――――――――――――――――――――――――――――――――――――――――――――
-    # public API
-    # ―――――――――――――――――――――――――――――――――――――――――――――――――
     def log(self, level: str, message: str, context: dict | None = None) -> None:
         ts  = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M:%S")
         lvl = level.upper()
