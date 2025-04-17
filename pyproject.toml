@@ -10,5 +10,6 @@ authors = [{ name = "Yun jihun", email = "wlgns9835@naver.com" }]
 dependencies = [
     "gspread>=5.12",
     "python-dotenv>=1.0",
+    "tzdata>=2023.3",
 ]
 requires-python = ">=3.9"
