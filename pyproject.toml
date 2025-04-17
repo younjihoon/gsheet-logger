@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ghlogger"
+name = "gsheet_logger"
 version = "0.1.0"
 description = "Tiny Gmail‑alerting Google‑Sheet logger"
 authors = [{ name = "Yun jihun", email = "wlgns9835@naver.com" }]
