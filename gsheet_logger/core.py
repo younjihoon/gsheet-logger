@@ -99,7 +99,7 @@ class GSheetLogger:
         if sheet_url:
             sh = self.gc.open_by_url(sheet_url)
         else:
-            sh = self.gc.open(sheet_name)
+            sh = self.gc.create(sheet_name)
             sheet_url = sh.url
             if persist:
                 cfg[logger_id] = sheet_url
