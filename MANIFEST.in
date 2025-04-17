@@ -1,0 +1,1 @@
+recursive-include config_templates *.example.json *.example
