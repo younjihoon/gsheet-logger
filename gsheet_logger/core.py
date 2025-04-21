@@ -144,7 +144,7 @@ class GSheetLogger:
         keep = []
         for r in data:
             try:
-                ts = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S")
+                ts = datetime.strptime(r[0], "%Y-%m-%d %H:%M:%S").replace(tzinfo=ZoneInfo(self.timezone))
             except Exception:
                 continue
             days = (now - ts).days
