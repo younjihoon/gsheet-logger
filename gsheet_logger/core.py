@@ -2,7 +2,7 @@ from __future__ import annotations
 import json, os, warnings, smtplib
 from datetime import datetime
 from typing import List, Dict, Optional
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones, ZoneInfoNotFoundError
 from email.message import EmailMessage
 import pathlib
 import gspread
@@ -25,6 +25,14 @@ def _save_cfg(cfg: Dict[str, str]) -> None:
     os.makedirs(_CFG_DIR, exist_ok=True)
     with open(_CFG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)
+
+
+def is_valid_timezone(tz_name: str) -> bool:
+    try:
+        ZoneInfo(tz_name)
+        return True
+    except ZoneInfoNotFoundError:
+        return False
 
 
 class GSheetLogger:
@@ -50,6 +58,7 @@ class GSheetLogger:
         email_recipients: List[str] | None = None,
         email_levels: List[str] | None = None,
         service_account_file: str = "service_account.json",
+        timezone: str = "Asia/Seoul",
         persist: bool = True,
     ) -> None:
         explicit_url      = sheet_url is not None
@@ -57,7 +66,9 @@ class GSheetLogger:
         self.email_levels = {lvl.upper() for lvl in (email_levels or [])}
         self.email_recipients = email_recipients or []
         self.smtp_user, self.smtp_password = smtp_user, smtp_password
-
+        if not is_valid_timezone(timezone):
+            raise ValueError(f"Invalid timezone: '{timezone}'. Must be a valid IANA timezone like 'Asia/Seoul' or 'UTC'.")
+        self.timezone = timezone
         # warn on duplicate id in same process
         if logger_id in self._registry:
             warnings.warn(f"GSheetLogger '{logger_id}' already exists.", UserWarning)
@@ -86,6 +97,7 @@ class GSheetLogger:
                 "   · Go to **Google Cloud Console → IAM & Admin → Service Accounts**\n"
                 "   · Create / pick a service account → Keys → “Create key” (JSON)\n"
                 "   · Save the JSON next to your script, or anywhere, e.g.  ~/.secrets/key.json\n"
+                "   · Activate Google Drive API and Google Sheets API\n"
                 "   · Then run again with either\n"
                 "       GSheetLogger(service_account_file='/full/path/key.json')\n"
                 "     or\n"
@@ -128,7 +140,7 @@ class GSheetLogger:
         if len(rows) < 2:
             return
         hdr, data = rows[0], rows[1:]
-        now = datetime.now(ZoneInfo("Asia/Seoul"))
+        now = datetime.now(ZoneInfo(self.timezone))
         keep = []
         for r in data:
             try:
@@ -160,7 +172,7 @@ class GSheetLogger:
             warnings.warn(f"Email send failed: {e}", RuntimeWarning)
 
     def log(self, level: str, message: str, context: dict | None = None) -> None:
-        ts  = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M:%S")
+        ts  = datetime.now(ZoneInfo(self.timezone)).strftime("%Y-%m-%d %H:%M:%S")
         lvl = level.upper()
         ctx = json.dumps(context or {}, ensure_ascii=False)
         try:
