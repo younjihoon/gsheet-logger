@@ -57,8 +57,10 @@ class GSheetLogger:
         smtp_password: str | None = os.getenv("SMTP_PASSWORD"),
         email_recipients: List[str] | None = None,
         email_levels: List[str] | None = None,
+        important_levels: List[str] = ["ERROR", "CRITICAL"],
         service_account_file: str = "service_account.json",
         timezone: str = "Asia/Seoul",
+        buffer_size: int = 100,
         persist: bool = True,
     ) -> None:
         explicit_url      = sheet_url is not None
@@ -66,6 +68,9 @@ class GSheetLogger:
         self.email_levels = {lvl.upper() for lvl in (email_levels or [])}
         self.email_recipients = email_recipients or []
         self.smtp_user, self.smtp_password = smtp_user, smtp_password
+        self.buffer = []
+        self.buffer_size = buffer_size
+        self.important_levels = important_levels
         if not is_valid_timezone(timezone):
             raise ValueError(f"Invalid timezone: '{timezone}'. Must be a valid IANA timezone like 'Asia/Seoul' or 'UTC'.")
         self.timezone = timezone
@@ -176,12 +181,21 @@ class GSheetLogger:
         lvl = level.upper()
         ctx = json.dumps(context or {}, ensure_ascii=False)
         try:
-            self.ws.append_row([ts, lvl, message, ctx])
+            if lvl in self.email_levels or lvl in self.important_levels:
+                self.ws.append_row([ts, lvl, message, ctx])
+            else:
+                self.buffer.append([ts, lvl, message, ctx])
         except Exception as e:
             warnings.warn(f"Sheet append failed: {e}", RuntimeWarning)
         if lvl in self.email_levels:
             self._mail(lvl, message, ctx)
+        if len(self.buffer) >= self.buffer_size:
+            self.flush()
 
+    def flush(self):
+        if self.buffer:
+            self.ws.append_rows(self.buffer)
+            self.buffer.clear()
     # optional getter
     @property
     def url(self) -> str:
