@@ -164,7 +164,7 @@ class GSheetLogger:
         m["To"] = ",".join(self.email_recipients)
         m.set_content(f"Level: {lvl}\nMessage: {msg}\nContext: {ctx}")
         try:
-            with smtplib.SMTP("smtp.gmail.com", 587) as s:
+            with smtplib.SMTP("smtp.gmail.com", 587, local_hostname='localhost') as s:
                 s.starttls()
                 s.login(self.smtp_user, self.smtp_password)
                 s.send_message(m)
